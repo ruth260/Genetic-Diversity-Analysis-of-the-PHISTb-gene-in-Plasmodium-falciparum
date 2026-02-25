@@ -1,68 +1,68 @@
 #!/bin/bash
 #create environment variable
 GENE=phist
-#LOCATION=Pf3D7_05_v3:1311992-1315355
+LOCATION=Pf3D7_05_v3:1311992-1315355
 workDir=/home/msmt/Desktop/training
-#Ref=/home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta
-#gatk=/home/msmt/packagesTools/gatk-4.4.0.0/./gatk
-#picard=/home/msmt/packagesTools/picard.jar
+Ref=/home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta
+gatk=/home/msmt/packagesTools/gatk-4.4.0.0/./gatk
+picard=/home/msmt/packagesTools/picard.jar
 #changing working folder
-#cd $workDir
+cd $workDir
 
 #making  directories
 
-#mkdir gene_Ext
+mkdir gene_Ext
 
 #the next line will create a subfolder that will be named phist
-#mkdir gene_Ext/$GENE
+mkdir gene_Ext/$GENE
 
 #indexing  our chromosome vcf file
 
-#bcftools index --tbi Pf3D7_05_v3.pf7.vcf.gz
+bcftools index --tbi Pf3D7_05_v3.pf7.vcf.gz
 
 #extracting the gene
-#bcftools view \
-#--threads 36 \
-#--regions $LOCATION \
-#--include 'FILTER="PASS" && N_ALT=1 && VQSLOD>1.0' \
-#--output-type z \
-#--output-file $workDir/gene_Ext/$GENE/${GENE}.vcf.gz \
-#Pf3D7_05_v3.pf7.vcf.gz
+bcftools view \
+--threads 36 \
+--regions $LOCATION \
+--include 'FILTER="PASS" && N_ALT=1 && VQSLOD>1.0' \
+--output-type z \
+--output-file $workDir/gene_Ext/$GENE/${GENE}.vcf.gz \
+Pf3D7_05_v3.pf7.vcf.gz
 
 #changing vcf to FASTA files
 
 #change workdir to the gene level folder
 cd $workDir/gene_Ext/$GENE
-#mkdir subsets
+mkdir subsets
 mkdir phylo
 
 #subsetting samples in the vcf file into individual vcf files
-#for file in *.vcf*; do
-#for sample in `bcftools view -h $file | grep "^#CHROM" | cut -f10-`; do
-#bcftools view -c1 -Oz -s $sample -o subsets/${sample}.vcf.gz $file
-#done
-#done
+for file in *.vcf*; do
+for sample in `bcftools view -h $file | grep "^#CHROM" | cut -f10-`; do
+bcftools view -c1 -Oz -s $sample -o subsets/${sample}.vcf.gz $file
+done
+done
 
 #index our reference genome
 
-#samtools faidx /home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta
+samtools faidx /home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta
 
 #running picard to create sequence dictionary for the generated vcf files
-#java -jar $picard CreateSequenceDictionary R=/home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta O=$workDir/ref_genome/Pfalciparum.genome.dict
-#cd subsets
-#mkdir consensus
-#for i in `ls *.vcf.gz | sed -e s/.vcf.gz//`;
-#do
-#${gatk} IndexFeatureFile -I $i.vcf.gz
-#${gatk} FastaAlternateReferenceMaker -R $Ref -O consensus/$i.fasta -L $LOCATION -V $i.vcf.gz
-#done
-#renaming samples to put sampleID to avoid replacing all the files
-#cd consensus
-#mkdir editedSeq
-#for i in `ls *.fasta | sed -e s/.fasta//`; do
-#sed -e s/[0-9]// ${i}.fasta | sed -e s/" "/${i}_/ | sed -e s/".1:1"// | sed -e s/_.*// > editedSeq/${i}_phist.fasta
-#done
-#cd editedSeq
-#cat *.fasta > $workDir/gene_Ext/$GENE/phist_all.fasta
+java -jar $picard CreateSequenceDictionary R=/home/msmt/Desktop/training/ref_genome/Pfalciparum.genome.fasta O=$workDir/ref_genome/Pfalciparum.genome.dict
+cd subsets
+mkdir consensus
+for i in `ls *.vcf.gz | sed -e s/.vcf.gz//`;
+do
+${gatk} IndexFeatureFile -I $i.vcf.gz
+${gatk} FastaAlternateReferenceMaker -R $Ref -O consensus/$i.fasta -L $LOCATION -V $i.vcf.gz
+done
+renaming samples to put sampleID to avoid replacing all the files
+cd consensus
+mkdir editedSeq
+for i in `ls *.fasta | sed -e s/.fasta//`; do
+sed -e s/[0-9]// ${i}.fasta | sed -e s/" "/${i}_/ | sed -e s/".1:1"// | sed -e s/_.*// > editedSeq/${i}_phist.fasta
+done
+cd editedSeq
+cat *.fasta > $workDir/gene_Ext/$GENE/phist_all.fasta
 mafft --auto $workDir/gene_Ext/$GENE/phist_all.fasta > $workDir/gene_Ext/$GENE/phylo/phist_all_aln.fasta # performing alignment of the sequences
 
