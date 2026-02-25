@@ -1,0 +1,66 @@
+#!/usr/bin/bash
+ cd Desktop/training/
+ 
+plink1.9 --vcf phist.vcf.gz --out phist --allow-extra-chr --double-id
+ls
+plink1.9 --bfile phist --mind 0.1 --make-bed --out phist_qc --allow-extra-chr
+plink1.9 --bfile phist_qc --geno 0.05 --make-bed --out phist_final --allow-extra-chr
+plink1.9 --bfile phist_final --pca --out phist_pca --allow-extra-chr
+
+
+###### importing data to R and plotting
+
+etwd("/home/msmt/Desktop/training/workshpo_day5")
+workDir="/home/msmt/Desktop/training/workshpo_day5/"
+#engvec=)
+library(ggplot2)
+library(dplyr) 
+######load eignvalues
+pca <- read.table("phist_pca.eigenvec", header = FALSE)
+
+#####load metadata
+metadata<- read.csv("Metadata.csv", header = TRUE, sep = ",")
+
+###plot the first two pca
+###first rename ID to sample ID and merge eigne value the dataset
+colnames(pca) <- c("FID","Sample", paste0("PC", 1:3))#FID is equal to sample id so need tobe removed
+####select only pc1 to pc3
+pca <- pca[, c("Sample", "PC1","PC2","PC3")]
+
+View(pca)
+
+#####merge pca and metadata
+pca <- merge(pca, metadata, by = "Sample")
+View(pca)
+write.csv(pca, "phist_mergedpca_metadata.csv")
+
+#####plot the pca showing percentage variation among the principal components
+ plot <- ggplot(pca, aes(x = PC1, y = PC2, color = "Sub-populations")) +
+  geom_point(size = 3) +
+  labs(x = "PC1", y = "PC2", color = "Admin.level.1")
+plot
+
+
+pc.percent <- pca$varprop * 100
+
+library(ggplot2)
+
+ggplot(merged_pca_metadata, aes(x = PC1, y = PC2,
+                                color = factor(Country),
+                                shape = factor(Population))) +
+  geom_point(size = 3) +
+  labs(
+    x = paste0("PC1 (", round(pc.percent[1], 2), "%)"),
+    y = paste0("PC2 (", round(pc.percent[2], 2), "%)"),
+    color = "Country",
+    shape = "Population"
+  ) +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 16),      # axis labels
+    axis.text  = element_text(size = 14),      # axis tick labels
+    legend.title = element_text(size = 14),    # legend titles
+    legend.text = element_text(size = 12),     # legend text
+    plot.title = element_text(size = 18)       # plot title (if you add one)
+  )
+

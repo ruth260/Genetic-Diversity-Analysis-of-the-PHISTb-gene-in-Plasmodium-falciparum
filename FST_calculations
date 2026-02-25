@@ -1,0 +1,65 @@
+library("ape")
+library("adegenet")
+library("pegas")
+library("poppr")
+library("hierfstat")
+library("colorspace")
+library("RColorBrewer")
+library("ggplot2")
+library("vcfR")
+
+
+#reading metadata
+metaD <- read.csv("Metadata.csv")
+
+filtered_metaD <- metaD[,c(1,4)]
+
+#converting a DNAbin to a genid
+
+data.genind <- DNAbin2genind(data, pop = filtered_metaD[["Admin.level.1"]], exp.char = c("a","t","g","c"),polyThres =1/100)
+class(data.genind)
+
+##convert a genind to a hierfstat object
+data_hierfstat <- genind2hierfstat(data.genind)
+class(data_hierfstat)
+if (!"pop" %in% names(data_hierfstat)) {
+  data_hierfstat$pop <- as.numeric(pop(data.genind))  # convert to numeric groups
+  data_hierfstat <- data_hierfstat[, c(ncol(data_hierfstat), 1:(ncol(data_hierfstat)-1))]  # move pop to first column
+}
+
+
+#fixing the hierfstat data
+# Make a copy and fix the pop column
+data_hierfstat_fixed <- data_hierfstat
+#ata_hierfstat_fixed$pop <- as.numeric(data_hierfstat$pop)
+
+
+#calculating fst
+fst <-pairwise.neifst(data_hierfstat)
+
+write.csv(fst, "fst_matrix_subpopulations.csv")
+
+
+
+##plotting  a heatmap for the fst
+heatmap(fst, Rowv=NA, Colv=NA)
+
+P <- heatmap.bp(fst,
+        trace = "none",                       # No trace lines
+        col = pal,                           # Oranges color scale
+        main = "Pairwise Fst Heatmap",       # Title
+        xlab = "Populations", ylab = "Populations",  # Axis labels
+        dendrogram = "none",                  # No clustering
+        margins = c(12, 12),                  # Increase margins to fit labels and legend
+        cexRow = 1.8, cexCol = 1.8,           # Adjust row/column label sizes
+        srtRow = 0,                           # No rotation for row labels (left side)
+        srtCol = 90,                          # Rotate col labels (top)
+        # cellnote = round(fst, 3),          # Commented out as you requested
+        notecol = "black",                    # Color of note text (if used)
+        notecex = 0.8,                        # Size of note text (if used)
+        density.info = "none",                # Remove density plot in margin
+        key = TRUE,                          # Show color legend
+        keysize = 1.5,                       # Adjust size of color key
+        key.title = "Fst Value",             # Legend title
+        key.xlab = "Fst"                     # Label for color scale
+)

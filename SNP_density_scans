@@ -1,0 +1,53 @@
+("~/Desktop/training/")
+workDir<-"~/Desktop/training/"
+dir.create("~/Desktop/training/PopGenome2")
+outputDir<-"~/Desktop/training/PopGenome/"
+install.packages("pacman")
+pacman::p_load(PopGenome, dplyr, tidyr, ggplot2, ggpubr, readxl, ggtree,tidyverse, vcfR)
+library(stats)
+library(ade4)
+library(ape)
+library(adegenet)
+library(phangorn) # install.packages("phangorn")
+library(hierfstat) # library(devtools); install_github("jgx65/hierfstat")
+devtools::install_github("pievos101/PopGenome")
+library(PopGenome)
+library(dplyr)
+library(adegenet)
+metadata <- read.csv(paste0(workDir,"Metadata.csv"), header = T)
+metadata
+glimpse(metadata)
+table(metadata$Admin.level.1)
+
+paste0(workDir)
+paste0(workDir, "Metadata.csv")
+
+##checking out the metadata and what it contains
+glimpse(metadata)
+table (metadata$Country)
+table(metadata$Admin.level.1)
+table(metadata$Admin.level.1,metadata$Year)
+Tanzania <- metadata %>% filter(Country == 'Tanzania') %>% select(Sample) %>% sapply(as.character) %>% as.vector
+Ethiopia <- metadata %>% filter(Country =='Ethiopia') %>% select(Sample) %>% sapply(as.character) %>% as.vector
+Uganda <- metadata %>% filter(Country =='Uganda') %>% select(Sample) %>%  sapply(as.character) %>% as.vector
+Kenya <- metadata %>% filter(Country =='Kenya') %>% select(Sample) %>% sapply(as.character) %>% as.vector
+
+
+###scannning SNP density across the phistb gene and plotting
+setwd(dir = paste0(workDir,"gene_Ext/phist/phylo/"))
+
+ldf <- list() # creates a list
+listfasta <- dir(pattern = "*.fasta") # read and creates the list of all the fasta files in the directory
+for (k in 1:length(listfasta)){
+  ldf[[k]] <- fasta2DNAbin(listfasta[k], chunkSize=300)
+  snps <- seg.sites(ldf[[k]])
+  svg(paste(outputDir, listfasta[k], "_snps.svg", sep=""))#for exploring SNP density across the gene
+  plot(density(snps, bw=100), col="royalblue",
+       xlab="Nucleotide position (bp)", ylab="SNP density",
+       main="Location of the SNPs in the phistb gene", lwd=2)
+  points(snps, rep(0, length(snps)), pch="|", col="red")
+  points(snps, rep(0, length(snps)), pch="|", col="red")
+  mtext(side=3, text="blue: density of SNPs, red bars: actual SNP positions")
+  dev.off()
+}
+

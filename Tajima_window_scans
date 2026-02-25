@@ -1,0 +1,76 @@
+#!/usr/bin/bash
+cd Desktop/phist_manuscript_analysis/phist_input_folder/
+ls
+
+#while read chrom start end; do     region_name="${chrom}_${start}_${end}";     vcftools --gzvcf phist.vcf.gz              --chr "$chrom"              --from-bp "$((start + 1))"              --to-bp "$end"              --TajimaD 1000              --out tajima_${region_name}; done < regions.bed
+
+
+#window scan for tajima in each population studied
+
+vcftools --gzvcf phist.vcf.gz    --keep tanzania_samples.txt --out tajima_tanzania   --TajimaD 1000          --window-pi 1000          --window-pi-step 50
+
+vcftools --gzvcf phist.vcf.gz    --keep kenya_samples.txt --out tajima_kenya   --TajimaD 1000          --window-pi 1000          --window-pi-step 50
+
+vcftools --gzvcf phist.vcf.gz    --keep uganda_samples.txt --out tajima_uganda   --TajimaD 1000          --window-pi 1000          --window-pi-step 50
+
+vcftools --gzvcf phist.vcf.gz    --keep ethiopia_samples.txt --out tajima_ethiopia   --TajimaD 1000          --window-pi 1000          --window-pi-step 50
+
+
+###importing Tajima's results and generating plots in R
+
+tan <- read.table("tajima_tanzania.Tajima.D", header = TRUE)
+tan$Population <- "Tanzania"
+
+ken <-read.table("kenya_tanzania.Tajima.D", header = TRUE)
+ken$population <- "Kenya"
+
+colnames (ken) <- c("CHROM","BIN_START","N_SNPS","TajimaD","Population")
+eth <- read.table("ethiopia.Tajima.D", header = TRUE)
+eth$Population <- "Ethiopia"
+
+ug <- read.table("uganda_Tajima.D", header = TRUE)
+ug$Population <- "Uganda"
+
+combined_tajima <- rbind(tan, ken, eth, ug)
+write.csv(combined_tajima, "new_combined_taj.csv")
+
+combined_tajima2 <- read.csv("new_combined_taj.csv", header = TRUE, sep = ",")
+
+
+colnames(combined_tajima) <- c("CHROM", "POS", "N_SITES", "TajimaD", "Population")
+#combined_tajima <- na.omit(combined_tajima)
+
+library(ggplot2)
+
+ggplot(combined_tajima2, aes(x = POS, y = TajimaD, color = Population)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_smooth(method = "loess", se = FALSE, linetype = "solid") +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "",
+    x = "Nucleotide Position (bp)",
+    y = "Tajima's D"
+  ) +
+  theme_minimal(base_size = 16) +  # Set base font size
+  theme(
+    # Text styling
+    plot.title = element_text(color = "black", size = 20, face = "bold", hjust = 0.5),
+    axis.title = element_text(color = "black", size = 18),
+    axis.text = element_text(color = "black", size = 14),
+    legend.title = element_text(color = "black", size = 16),
+    legend.text = element_text(color = "black", size = 14),
+    
+    # Remove grid lines and background
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    
+    # Axis lines
+    axis.line = element_line(color = "black"),
+    
+    # Optional: remove legend background
+    legend.background = element_blank(),
+    legend.key = element_blank()
+  )
+

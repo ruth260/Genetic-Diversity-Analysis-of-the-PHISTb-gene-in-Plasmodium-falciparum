@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+cd Desktop/phist_manuscript_analysis/phist_input_folder/
+ls
+
+##using vcfrolls to assess per site missingnes
+
+--gzvcf phist.vcf.gz  --out phist_missingness  --missing-site
+
+## plotting per-site missingness in R
+library (ggplot2)
+library(dplyr)
+
+list.files()
+
+missingness <- read.table("phist_missingness.lmiss", header = TRUE, stringsAsFactors = FALSE)
+
+
+###plotting the persite missingness
+
+
+ggplot(missingness, aes(x = POS, y = F_MISS)) +
+  geom_point(size = 1.2, alpha = 0.7, color = "steelblue") +
+  #geom_smooth(method = NULL, se = FALSE, linewidth = 0.8, color = "steelblue") +
+  labs(
+    x = "Genomic position (bp)",
+    y = "Fraction of missing genotypes per site",
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(color = "black"),
+    legend.title = element_text(color = "black"),
+    legend.text = element_text(color = "black"),
+    legend.position = "bottom",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(color = "black")
+  )
+

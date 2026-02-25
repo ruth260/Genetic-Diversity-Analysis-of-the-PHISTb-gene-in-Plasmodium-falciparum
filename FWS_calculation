@@ -1,0 +1,165 @@
+library(SeqArray)
+library (dplyr)
+library(ggplot2)
+library(svglite)
+list.files()
+
+## converting vcf files to gds
+
+mygds <- seqVCF2GDS("~/Desktop/Moimix/phist.vcf.gz", "~/Desktop/Moimix/phist.gds")
+
+mygds_data <- seqOpen(mygds)
+
+#calculating fws 
+
+fws <- getFws(mygds_data)
+
+write.csv(fws, "calculated_fws.csv)
+
+fws_table <- read.csv("calculated_fws.csv")
+meta <- read.csv ("Metadata.csv")
+
+merged_d <- merge(meta, fws_table, by = "Sample")
+table(merged_d$Monoclonal, merged_d$Admin.level.1)
+
+fws <- table(merged_d$Monoclonal, merged_d$Admin.level.1)
+
+##creating fws as a data frame
+fws_datafame <- as.data.frame(fws)
+colnames(fws_datafame) <- c("status", "admin_level","frequency")
+
+#renaming the fws dataframe
+
+colnames(fws_datafame) <- c("status", "admin_level","frequency")
+
+## arranging the admin_levels that they appear in my preferred order
+
+prefered_order <- c("Amhara", "Oromia", "Kilifi", "Kisumu", "Tanga","Kagera","Lindi","Kigoma","Morogoro","Apac")
+
+fws_datafame$admin_level <- factor(fws_datafame$admin_level, levels = prefered_order)
+
+
+#making plots with percentages on top
+
+fws_perct <- fws_datafame %>% 
+  group_by(admin_level) %>%
+  mutate(percentage = frequency / sum(frequency) * 100)
+
+ggplot(fws_perct, aes(x = admin_level, y = percentage, fill = status)) +
+  geom_col(position = position_dodge(width = 0.9)) +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3.5) +  # Increased text size for labels
+  scale_fill_manual(values = c("Monoclonal" = "orange", "polyclonal" = "blue")) +
+  theme_minimal(base_size = 14) +  # Increase base font size
+  theme(
+    panel.grid.major = element_blank(),  # Remove major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12, face = "bold"),  # X-axis text
+    axis.text.y = element_text(size = 12, face = "bold"),                         # Y-axis text
+    axis.title = element_text(size = 14, face = "bold"),           # Axis titles
+    legend.title = element_text(size = 14),                        # Legend title
+    legend.text = element_text(size = 13),                         # Legend text
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  # Title
+  ) +
+  labs(
+    title = " ",
+    x = " ",
+    y = "Percentage of Samples (%)",
+    fill = "Status"
+  )
+
+
+##ploting only bars that are non zero
+
+
+# Remove 0% rows
+fws_perct_nonzero <- fws_perct %>%
+  filter(percentage > 0)
+
+# Plot
+ ggplot(fws_perct_nonzero, aes(x = admin_level, y = percentage, fill = status)) +
+  geom_col(position = position_dodge(width = 0.9)) +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  scale_fill_manual(values = c("Monoclonal" = "orange", "polyclonal" = "blue")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  labs(
+    title = " ",
+    x = " ",
+    y = "Percentage of Samples (%)",
+    fill = "Status"
+  )
+
+
+
+#conducting comparison of fws values from malariagenfaws to calculatedfws
+library(dplyr)
+library(ggplot2)
+list.files()
+
+myFws <- read.csv("calculated_fws.csv", header = TRUE,  sep = ",")
+genFws <- read.csv("MalariaGEN_metadata.csv", header = TRUE, sep = ",")
+
+##checking the colnames in the malariagen fws
+
+colnames(genFws)
+
+##filtering the fws values from malaria gen to retain only few columns
+
+new_gen_Fws <- genFws[, c(2, 4, 5, 32)]
+nw_gen_Fws <- new_gen_Fws[new_gen_Fws$Country %in% 
+                            c("Tanzania", "Kenya", "Uganda", "Ethiopia"), ]
+
+#merging the dataset to retain only values that are present in the two data sets
+merged_fws <- nw_gen_Fws %>%
+  filter(!is.na(Fws)) %>%
+  inner_join(myFws, by = "Sample")
+
+colnames(merged_fws)
+
+#renaming the columns
+colnames(merged_fws) <- c("Sample", "Country", "Admin.level.1", "GEN_Fws", "My_fws", "Clonality")
+
+#creating a small table that has number of monoclonal and polyclonal samples based on 
+
+merged_fws <- merged_fws %>% 
+  mutate(
+    clonality_1 = ifelse(GEN_Fws>= 0.95, "Monoclonal", "Polyclonal"), 
+    .after=GEN_Fws
+  )
+  )
+table(merged_fws$clonality_1)
+table(merged_fws$Clonality)
+
+#making a summary_table for comparison
+t_gen <- table(merged_fws$clonality_1)
+t_my  <- table(merged_fws$Clonality)
+
+comparison_df <- data.frame(
+  Clonality = c("Monoclonal", "Polyclonal"),
+  Gen_Fws   = c(t_gen["Monoclonal"], t_gen["Polyclonal"]),
+  My_fws    = c(t_my["Monoclonal"],  t_my["polyclonal"])
+)
+
+comparison_df
+
+write.csv(comparison_df, "comparison_of_fws.csv")
+#comparison of the agreement btn clonality by malariagen and clonality by monoclonal samples
+
+prop.test(
+  x = c(718, 875),           # Monoclonal counts
+  n = c(718 + 594, 875 + 437)
+)
+

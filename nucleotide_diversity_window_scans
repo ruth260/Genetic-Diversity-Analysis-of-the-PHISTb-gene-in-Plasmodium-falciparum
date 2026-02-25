@@ -1,0 +1,97 @@
+#!/usr/bin/bash
+cd Desktop/phist_manuscript_analysis/phist_input_folder/
+ls
+
+#calculating nucleotide diversity for each study population using a windo size of 500 bp and step size 50 bp
+
+--gzvcf phist.vcf.gz  --keep tanzania_samples.txt  --out tanzania_nucdiversity  --window-pi 500  --window-pi-step 50
+
+--gzvcf phist.vcf.gz  --keep kenya_samples.txt  --out kenya_nucdiversity  --window-pi 500  --window-pi-step 50
+
+--gzvcf phist.vcf.gz  --keep uganda_samples.txt  --out uganda_nucdiversity  --window-pi 500  --window-pi-step 50
+
+--gzvcf phist.vcf.gz  --keep ethiopia_samples.txt  --out ethiopia_nucdiversity  --window-pi 500  --window-pi-step 50
+
+
+
+### data preparation before plotting
+tan_nuc <- read.table("tanzania_nucdiversity.windowed.pi", header = TRUE)
+tan_nuc$Population <- "Tanzania"
+
+ken_nuc <- read.table("kenya_nucdiversity.windowed.pi", header = TRUE)
+ken_nuc$Population <- "Kenya"
+
+eth_nuc <- read.table("ethiopia_nucdiversity.windowed.pi", header = TRUE)
+eth_nuc$Population <- "Ethiopia"
+
+ug_nuc <- read.table ("uganda_nucdiversity.windowed.pi", header = TRUE)
+ug_nuc$Population <- "Uganda"
+
+combined_nucdiv <- rbind(tan_nuc, ken_nuc, eth_nuc, ug_nuc)
+colnames(combined_nucdiv) <- c("CHROM", "START", "END", "N_VARIANTS", "PI", "Population")
+
+write.csv(combined_nucdiv, "nuc_div_pops.csv")
+
+##reading modified data
+nucdiv_modified <- read.csv ("nuc_div_pops.csv", header = TRUE, sep = "," )
+nucdiv_modified$MIDPOINT <- (nucdiv_modified$START + nucdiv_modified$END)/2
+
+
+##ploting
+
+
+
+library(tidyverse)
+library(dplyr)
+str(nucdiv_modified)
+table(nucdiv_modified$Population)
+
+##identifying the smallest starting point and the highest end points
+gene_limits <- nucdiv_modified %>%
+  summarise(
+    gene_start = min(START, na.rm = TRUE),
+    gene_end   = max(END,   na.rm = TRUE)
+  )
+
+gene_limits
+
+gene_start <- gene_limits$gene_start
+gene_end   <- gene_limits$gene_end
+
+nucdiv_modified <- nucdiv_modified %>%
+  filter(MIDPOINT >= gene_start & MIDPOINT <= gene_end)
+
+##checcking boundaries for each population
+nucdiv_modified %>%
+  group_by(Population) %>%
+  summarise(
+    start_min = min(START),
+    end_max   = max(END),
+    n_windows = n()
+  )
+
+gene_start <- 1311551
+gene_end   <- gene_start + 3364
+
+pi <- nucdiv_modified %>%
+  filter(MIDPOINT >= gene_start & MIDPOINT <= gene_end)
+
+##plotting
+ggplot(pi, aes(x = MIDPOINT, y = PI, color = Population)) +
+  geom_smooth(method = "loess", se = FALSE, linewidth = 1) +
+  labs(
+    x = "Window Midpoint",
+    y = "Nucleotide Diversity (π)"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(color = "black"),
+    legend.title = element_text(color = "black"),
+    legend.text = element_text(color = "black"),
+    legend.position = "bottom",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(color = "black")
+  )
+
